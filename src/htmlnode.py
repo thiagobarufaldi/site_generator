@@ -15,4 +15,4 @@ class HTMLNode():
         return ''.join(props_list)
 
     def __repr__(self):
-        return f'<tag={self.tag}>,val="{self.value}",<child={self.children}>,<props={self.props}>'
+        return f"<tag={self.tag}, val='{self.value}', child={self.children}, props={self.props}>"
