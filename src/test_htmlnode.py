@@ -1,6 +1,6 @@
 import unittest
 
-from htmlnode import HTMLNode
+from html_node import HTMLNode
 from leaf_node import LeafNode
 from parent_node import ParentNode
 
