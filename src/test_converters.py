@@ -53,11 +53,13 @@ class TestNodeSplit(unittest.TestCase):
     def test_split_text(self):
         node = TextNode("This is a text with a `code block` word", TextType.TEXT)
         nodes = split_nodes_delimiter([node], "`", TextType.CODE)
-        expected_output = [
-            TextNode("This is a text with a ", TextType.TEXT),
-            TextNode("code block", TextType.CODE),
-            TextNode(" word", TextType.TEXT)
-        ]
+        expected_output = (
+            [
+                TextNode("This is a text with a ", TextType.TEXT),
+                TextNode("code block", TextType.CODE),
+                TextNode(" word", TextType.TEXT)
+            ]
+        )
         self.assertEqual(nodes, expected_output)
 
     def test_split_no_delimiter(self):
@@ -74,12 +76,14 @@ class TestNodeSplit(unittest.TestCase):
     def test_split_multiple_delimiters(self):
         node = TextNode("This is a text with `two` `code blocks`", TextType.TEXT)
         nodes = split_nodes_delimiter([node], "`", TextType.CODE)
-        expected_output = [
-            TextNode("This is a text with ", TextType.TEXT), 
-            TextNode("two", TextType.CODE),
-            TextNode(" ", TextType.TEXT), 
-            TextNode("code blocks", TextType.CODE)
-        ]
+        expected_output = (
+            [
+                TextNode("This is a text with ", TextType.TEXT), 
+                TextNode("two", TextType.CODE),
+                TextNode(" ", TextType.TEXT), 
+                TextNode("code blocks", TextType.CODE)
+            ]
+        )
         self.assertEqual(nodes, expected_output)
 
 class TestExtractLinks(unittest.TestCase):
@@ -100,6 +104,76 @@ class TestExtractLinks(unittest.TestCase):
             ],
             matches,
         )
+
+    def test_split_image_nodes(self):
+        node = TextNode("This is a text with an ![fastcrab](https://media1.tenor.com/m/Z0XLPreWZC0AAAAd/headcrab-hl2.gif)", TextType.TEXT)
+        matches = split_nodes_image([node])
+        self.assertListEqual(
+            [
+                TextNode("This is a text with an ", TextType.TEXT),
+                TextNode("fastcrab", TextType.IMAGE,
+                         "https://media1.tenor.com/m/Z0XLPreWZC0AAAAd/headcrab-hl2.gif"),
+            ],
+            matches,
+        )
+
+    def test_split_none_image(self):
+        node = TextNode("This is a text with consequences.", TextType.TEXT)
+        matches = split_nodes_image([node])
+        self.assertListEqual(
+            [
+                TextNode("This is a text with consequences.", TextType.TEXT)
+            ],
+            matches,
+        )
+
+    def test_split_multiple_images(self):
+        node = TextNode("This is tf2 best class ![engineer](https://static.wikia.nocookie.net/villains/images/c/cd/Engi1.jpg/revision/latest?cb=20140728221451) and this is my most played class ![sniper](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTn5rgat78qkKpVybZojfkvOgYfxgvOCtMHGA&s)", TextType.TEXT)
+        matches = split_nodes_image([node])
+        self.assertListEqual(
+            [
+                TextNode("This is tf2 best class ", TextType.TEXT),
+                TextNode("engineer", TextType.IMAGE, "https://static.wikia.nocookie.net/villains/images/c/cd/Engi1.jpg/revision/latest?cb=20140728221451"),
+                TextNode(" and this is my most played class ", TextType.TEXT),
+                TextNode("sniper", TextType.IMAGE, "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTn5rgat78qkKpVybZojfkvOgYfxgvOCtMHGA&s")
+            ],
+            matches,
+        )
+
+    def test_split_invalid_image(self):
+        node = TextNode("This is invalid image ![notgood markdown]()", TextType.TEXT)
+        with self.assertRaises(ValueError):
+            split_nodes_image([node])
+
+    def test_split_link_nodes(self):
+        node = TextNode("This is a link for [valve software](https://www.valvesoftware.com/)", TextType.TEXT)
+        matches = split_nodes_link([node])
+        self.assertListEqual(
+            [
+                TextNode("This is a link for ", TextType.TEXT),
+                TextNode("valve software", TextType.LINK, "https://www.valvesoftware.com/") 
+            ],
+            matches,
+        )
+
+    def test_split_multiple_links(self):
+        node = TextNode("These are the games [team fortress 2](https://www.teamfortress.com/) and [half-life](https://www.half-life.com/) I really enjoy them", TextType.TEXT)
+        matches = split_nodes_link([node])
+        self.assertListEqual(
+            [
+                TextNode("These are the games ", TextType.TEXT),
+                TextNode("team fortress 2", TextType.LINK, "https://www.teamfortress.com/"),
+                TextNode(" and ", TextType.TEXT),
+                TextNode("half-life", TextType.LINK, "https://www.half-life.com/"),
+                TextNode(" I really enjoy them", TextType.TEXT)
+            ],
+            matches,
+        )
+
+    def test_split_invalid_links(self):
+        node = TextNode("This is an invalid [link]()", TextType.TEXT)
+        with self.assertRaises(ValueError):
+            split_nodes_link([node])
 
 if __name__ == "__main__":
     unittest.main()
