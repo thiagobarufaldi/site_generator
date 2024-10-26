@@ -26,7 +26,22 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
             new_nodes.append(node)
             continue
 
-        new_nodes.extend(process_text(node.text, delimiter, text_type))
+        text = node.text
+        if delimiter == "**":
+            nodes = split_bold(text)
+            new_nodes.extend(nodes)
+
+        elif delimiter == "*":
+            nodes = split_italic(text)
+            new_nodes.extend(nodes)
+
+        elif delimiter == "`": 
+            nodes = split_code(text)
+            new_nodes.extend(nodes)
+
+        else:
+            new_nodes.append(node)
+            continue
 
     return new_nodes
 
@@ -79,33 +94,15 @@ def split_nodes_link(old_nodes):
 
     return new_nodes
 
-def process_text(text, delimiter, text_type):
-    if not delimiter:
-        return [TextNode(text, TextType.TEXT)]
+def text_to_textnodes(text):
+    nodes = [TextNode(text, TextType.TEXT)]
+    nodes = split_nodes_image(nodes)
+    nodes = split_nodes_link(nodes)
+    nodes = split_nodes_delimiter(nodes, "**", TextType.BOLD)
+    nodes = split_nodes_delimiter(nodes, "*", TextType.ITALIC)
+    nodes = split_nodes_delimiter(nodes, "`", TextType.CODE)
 
-    first = text.find(delimiter)
-    if first == -1:
-        return [TextNode(text, TextType.TEXT)]
-
-    second = text.find(delimiter, first + 1)
-    if second == -1:
-        raise ValueError("Closing delimiter not found")
-
-    before = text[0:first]
-    during = text[first + 1:second]
-    after = text[second + 1:]
-
-    result = []
-
-    if before:
-        result.append(TextNode(before, TextType.TEXT))
-
-    result.append(TextNode(during, text_type))
-
-    if after:
-        result.extend(process_text(after, delimiter, text_type))
-
-    return result
+    return nodes
 
 def extract_markdown_images(text):
     malformed = re.findall(r"!\[\]|\!\[[^\]]*\]\(\)|\!\[[^\]]*\]\(\s*\)", text)
@@ -120,3 +117,81 @@ def extract_markdown_links(text):
         raise ValueError("Invalid link markdown - empty text or URL")
     link_url = re.findall(r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)", text)
     return link_url
+
+def split_bold(text):
+    while '**' in text:
+        start = text.find('**')
+        end = text.find('**', start + 2)
+
+        if end == -1: 
+            raise ValueError("Invalid Markdown: Closing tag not found")
+
+        before_bold = text[:start]
+        bold_text = text[start + 2:end]
+        text = text[end + 2:]
+
+        nodes = []
+        if before_bold:
+            nodes.append(TextNode(before_bold, TextType.TEXT))
+
+        if bold_text:
+            nodes.append(TextNode(bold_text, TextType.BOLD))
+
+        if text:
+            nodes.extend(split_bold(text))
+
+        return nodes
+
+    return [TextNode(text, TextType.TEXT)]
+
+def split_italic(text):
+    while '*' in text:
+        start = text.find('*')
+        end = text.find('*', start + 1)
+
+        if end == -1: 
+            raise ValueError("Invalid Markdown: Closing tag not found")
+
+        before_italic = text[:start]
+        italic_text = text[start + 1:end]
+        text = text[end + 1:]
+
+        nodes = []
+        if before_italic:
+            nodes.append(TextNode(before_italic, TextType.TEXT))
+
+        if italic_text:
+            nodes.append(TextNode(italic_text, TextType.ITALIC))
+
+        if text:
+            nodes.extend(split_italic(text))
+
+        return nodes
+
+    return [TextNode(text, TextType.TEXT)]
+
+def split_code(text):
+    while '`' in text:
+        start = text.find('`')
+        end = text.find('`', start + 1)
+
+        if end == -1: 
+             raise ValueError("Invalid Markdown: Closing tag not found")
+
+        before_code = text[:start]
+        code_text = text[start + 1:end]
+        text = text[end + 1:]
+
+        nodes = []
+        if before_code:
+            nodes.append(TextNode(before_code, TextType.TEXT))
+
+        if code_text:
+            nodes.append(TextNode(code_text, TextType.CODE))
+
+        if text:
+            nodes.extend(split_code(text))
+
+        return nodes
+
+    return [TextNode(text, TextType.TEXT)]

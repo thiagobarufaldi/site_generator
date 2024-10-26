@@ -175,5 +175,68 @@ class TestExtractLinks(unittest.TestCase):
         with self.assertRaises(ValueError):
             split_nodes_link([node])
 
+    def test_split_textnodes_bold_italic(self):
+        node = "Failure is just another type of **success**. The *wrong* kind."
+        matches = text_to_textnodes(node)
+        self.assertListEqual(
+            [
+                TextNode("Failure is just another type of ", TextType.TEXT),
+                TextNode("success", TextType.BOLD),
+                TextNode(". The ", TextType.TEXT),
+                TextNode("wrong", TextType.ITALIC),
+                TextNode(" kind.", TextType.TEXT)
+            ],
+            matches,
+        )
+
+    def test_split_textnodes_images(self):
+        node = "Let's go play ![dota 2](https://media.tenor.com/T_h6lAM1X2UAAAAM/hopondota2-dota.gif)"
+        matches = text_to_textnodes(node)
+        self.assertListEqual(
+            [
+                TextNode("Let's go play ", TextType.TEXT),
+                TextNode("dota 2", TextType.IMAGE, 
+                         "https://media.tenor.com/T_h6lAM1X2UAAAAM/hopondota2-dota.gif")
+            ],
+            matches,
+        )
+
+    def test_split_textnodes_links(self):
+        node = "Let's go play [dota 2](https://www.dota2.com/home)"
+        matches = text_to_textnodes(node)
+        self.assertListEqual(
+            [
+                TextNode("Let's go play ", TextType.TEXT),
+                TextNode("dota 2", TextType.LINK, "https://www.dota2.com/home")
+            ],
+            matches,
+        )
+
+    def test_split_textnodes_multiple(self):
+        node = "Let's go *play* [dota 2](https://www.dota2.com/home) **now**? ![bounty](https://media.tenor.com/XYg91Fy0iYcAAAAM/dota2-ijudas.gif)"
+        matches = text_to_textnodes(node)
+        self.assertListEqual(
+            [
+                TextNode("Let's go ", TextType.TEXT),
+                TextNode("play", TextType.ITALIC),
+                TextNode(" ", TextType.TEXT),
+                TextNode("dota 2", TextType.LINK, "https://www.dota2.com/home"),
+                TextNode(" ", TextType.TEXT),
+                TextNode("now", TextType.BOLD),
+                TextNode("? ", TextType.TEXT),
+                TextNode("bounty", TextType.IMAGE, 
+                         "https://media.tenor.com/XYg91Fy0iYcAAAAM/dota2-ijudas.gif")
+            ],
+            matches,
+        )
+
+    def test_split_textnodes_empty(self):
+        node = ""
+        matches = text_to_textnodes(node)
+        self.assertListEqual(
+            [TextNode("", TextType.TEXT)],
+            matches,
+        )
+
 if __name__ == "__main__":
     unittest.main()
