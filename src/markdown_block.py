@@ -1,6 +1,6 @@
+import re
 from constants import BLOCK_TYPES
 from html_node import HTMLNode
-from parent_node import ParentNode
 
 def markdown_to_blocks(markdown: str):
     if not markdown:
@@ -39,12 +39,10 @@ def block_to_block_type(block):
                 return BLOCK_TYPES["block_type_paragraph"]
         return BLOCK_TYPES["block_type_ulist"]
 
-    if block.startswith("1. "):
-        i = 1
+    if re.match(r'^\d+\.\s', lines[0]):
         for line in lines:
-            if not line.startswith(f"{i}. "):
+            if not re.match(r'^\d+\.\s', line):
                 return BLOCK_TYPES["block_type_paragraph"]
-            i += 1
         return BLOCK_TYPES["block_type_olist"]
     return BLOCK_TYPES["block_type_paragraph"]
 
@@ -67,7 +65,37 @@ def create_block_node(block, type):
 
         case "code":
             content = block.strip("```")
-            return HTMLNode(ParentNode("pre")
+            code_node = HTMLNode("code", value=content)
+            return HTMLNode("pre", children=[code_node])
+
+        case "quote":
+            content = block.strip(">")
+            return HTMLNode("blockquote", value=content)
+
+        case "ordered_list":
+            list_items = block.split('\n')
+            li_nodes = []
+            for item in list_items:
+                content = re.sub(r'^\d+\.\s', '', item)
+                li_nodes.append(HTMLNode("li", value=content))
+            return HTMLNode("ol", children=li_nodes)
+
+        case "unordered_list":
+            list_items = block.split('\n')
+            li_nodes = []
+            for item in list_items:
+                if item.startswith("* "):
+                    content = item.strip("* ")
+                    li_nodes.append(HTMLNode("li", value=content))
+                elif item.startswith("- "):
+                    content = item.strip("- ")
+                    li_nodes.append(HTMLNode("li", value=content))
+            return HTMLNode("ul", children=li_nodes)
+
+        case "paragraph":
+            content = block.strip()
+            return HTMLNode("p", value=content)
+
 
 def get_heading_level(block):
     stripped_heading = block.lstrip()
