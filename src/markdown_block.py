@@ -13,7 +13,8 @@ def markdown_to_blocks(markdown: str):
     return complete_blocks
 
 def block_to_block_type(block):
-    lines = block.split("\n")
+    lines = block.split('\n')
+    clean_lines = get_cleaned_list_items(block)
 
     if block.startswith(("# ", "## ", "### ", "#### ", "##### ", "###### ")):
         return BLOCK_TYPES["block_type_heading"]
@@ -22,25 +23,25 @@ def block_to_block_type(block):
         return BLOCK_TYPES["block_type_code"]
 
     if block.startswith(">"):
-        for line in lines:
+        for line in clean_lines:
             if not line.startswith(">"):
                 return BLOCK_TYPES["block_type_paragraph"]
         return BLOCK_TYPES["block_type_quote"]
 
     if block.startswith("* "):
-        for line in lines:
+        for line in clean_lines:
             if not line.startswith("* "):
                 return BLOCK_TYPES["block_type_paragraph"]
         return BLOCK_TYPES["block_type_ulist"]
 
     if block.startswith("- "):
-        for line in lines:
+        for line in clean_lines:
             if not line.startswith("- "):
                 return BLOCK_TYPES["block_type_paragraph"]
         return BLOCK_TYPES["block_type_ulist"]
 
     if re.match(r'^\d+\.\s', lines[0]):
-        for line in lines:
+        for line in clean_lines:
             if not re.match(r'^\d+\.\s', line):
                 return BLOCK_TYPES["block_type_paragraph"]
         return BLOCK_TYPES["block_type_olist"]
@@ -73,7 +74,7 @@ def create_block_node(block, type):
             return HTMLNode("blockquote", value=content)
 
         case "ordered_list":
-            list_items = block.split('\n')
+            list_items = get_cleaned_list_items(block)
             li_nodes = []
             for item in list_items:
                 content = re.sub(r'^\d+\.\s', '', item)
@@ -81,7 +82,7 @@ def create_block_node(block, type):
             return HTMLNode("ol", children=li_nodes)
 
         case "unordered_list":
-            list_items = block.split('\n')
+            list_items = get_cleaned_list_items(block)
             li_nodes = []
             for item in list_items:
                 if item.startswith("* "):
@@ -106,3 +107,8 @@ def get_heading_level(block):
         i += 1
 
     return f"h{i}"
+
+def get_cleaned_list_items(items):
+    list_items = items.split('\n')
+    clean_items = [item.strip() for item in list_items]
+    return clean_items
