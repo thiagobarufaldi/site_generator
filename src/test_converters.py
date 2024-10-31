@@ -2,7 +2,7 @@ import unittest
 
 from node_operations import *
 from text_node import TextNode, TextType
-from leaf_node import LeafNode
+from html_node import LeafNode
 
 class TestNodeConverters(unittest.TestCase):
     def test_txt(self):

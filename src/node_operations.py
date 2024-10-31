@@ -1,6 +1,6 @@
 import re
 from text_node import TextNode, TextType
-from leaf_node import LeafNode
+from html_node import LeafNode
 
 def text_node_to_html_node(text_node):
     match text_node.text_type:

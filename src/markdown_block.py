@@ -1,114 +1,151 @@
-import re
-from constants import BLOCK_TYPES
-from html_node import HTMLNode
+from html_node import ParentNode
+from inline_markdown import text_to_textnodes
+from text_node import text_node_to_html_node
 
-def markdown_to_blocks(markdown: str):
-    if not markdown:
-        return []
+block_type_paragraph = "paragraph"
+block_type_heading = "heading"
+block_type_code = "code"
+block_type_quote = "quote"
+block_type_olist = "ordered_list"
+block_type_ulist = "unordered_list"
 
-    blocks = markdown.split('\n\n')
-    clean_blocks = [block.strip() for block in blocks]
-    complete_blocks = list(filter(None, clean_blocks))
 
-    return complete_blocks
+def markdown_to_blocks(markdown):
+    blocks = markdown.split("\n\n")
+    filtered_blocks = []
+    for block in blocks:
+        if block == "":
+            continue
+        block = block.strip()
+        filtered_blocks.append(block)
+    return filtered_blocks
+
 
 def block_to_block_type(block):
-    lines = block.split('\n')
-    clean_lines = get_cleaned_list_items(block)
+    lines = block.split("\n")
 
     if block.startswith(("# ", "## ", "### ", "#### ", "##### ", "###### ")):
-        return BLOCK_TYPES["block_type_heading"]
-
+        return block_type_heading
     if len(lines) > 1 and lines[0].startswith("```") and lines[-1].startswith("```"):
-        return BLOCK_TYPES["block_type_code"]
-
+        return block_type_code
     if block.startswith(">"):
-        for line in clean_lines:
+        for line in lines:
             if not line.startswith(">"):
-                return BLOCK_TYPES["block_type_paragraph"]
-        return BLOCK_TYPES["block_type_quote"]
-
+                return block_type_paragraph
+        return block_type_quote
     if block.startswith("* "):
-        for line in clean_lines:
+        for line in lines:
             if not line.startswith("* "):
-                return BLOCK_TYPES["block_type_paragraph"]
-        return BLOCK_TYPES["block_type_ulist"]
-
+                return block_type_paragraph
+        return block_type_ulist
     if block.startswith("- "):
-        for line in clean_lines:
+        for line in lines:
             if not line.startswith("- "):
-                return BLOCK_TYPES["block_type_paragraph"]
-        return BLOCK_TYPES["block_type_ulist"]
+                return block_type_paragraph
+        return block_type_ulist
+    if block.startswith("1. "):
+        i = 1
+        for line in lines:
+            if not line.startswith(f"{i}. "):
+                return block_type_paragraph
+            i += 1
+        return block_type_olist
+    return block_type_paragraph
 
-    if re.match(r'^\d+\.\s', lines[0]):
-        for line in clean_lines:
-            if not re.match(r'^\d+\.\s', line):
-                return BLOCK_TYPES["block_type_paragraph"]
-        return BLOCK_TYPES["block_type_olist"]
-    return BLOCK_TYPES["block_type_paragraph"]
 
 def markdown_to_html_node(markdown):
     blocks = markdown_to_blocks(markdown)
-    html_nodes = []
+    children = []
     for block in blocks:
-        block_type = block_to_block_type(block)
-        html = create_block_node(block, block_type)
-        html_nodes.append(html)
-
-    return HTMLNode("div", children=html_nodes)
-
-def create_block_node(block, type):
-    match type:
-        case "heading":
-            level = get_heading_level(block)
-            content = block.lstrip("#").strip()
-            return HTMLNode(tag=level, value=content)
-
-        case "code":
-            content = block.strip("```")
-            code_node = HTMLNode("code", value=content)
-            return HTMLNode("pre", children=[code_node])
-
-        case "quote":
-            content = block.strip(">")
-            return HTMLNode("blockquote", value=content)
-
-        case "ordered_list":
-            list_items = get_cleaned_list_items(block)
-            li_nodes = []
-            for item in list_items:
-                content = re.sub(r'^\d+\.\s', '', item)
-                li_nodes.append(HTMLNode("li", value=content))
-            return HTMLNode("ol", children=li_nodes)
-
-        case "unordered_list":
-            list_items = get_cleaned_list_items(block)
-            li_nodes = []
-            for item in list_items:
-                if item.startswith("* "):
-                    content = item.strip("* ")
-                    li_nodes.append(HTMLNode("li", value=content))
-                elif item.startswith("- "):
-                    content = item.strip("- ")
-                    li_nodes.append(HTMLNode("li", value=content))
-            return HTMLNode("ul", children=li_nodes)
-
-        case "paragraph":
-            content = block.strip()
-            return HTMLNode("p", value=content)
+        html_node = block_to_html_node(block)
+        children.append(html_node)
+    return ParentNode("div", children, None)
 
 
-def get_heading_level(block):
-    stripped_heading = block.lstrip()
-    i = 0
-    for head in stripped_heading:
-        if head != '#':
+def block_to_html_node(block):
+    block_type = block_to_block_type(block)
+    if block_type == block_type_paragraph:
+        return paragraph_to_html_node(block)
+    if block_type == block_type_heading:
+        return heading_to_html_node(block)
+    if block_type == block_type_code:
+        return code_to_html_node(block)
+    if block_type == block_type_olist:
+        return olist_to_html_node(block)
+    if block_type == block_type_ulist:
+        return ulist_to_html_node(block)
+    if block_type == block_type_quote:
+        return quote_to_html_node(block)
+    raise ValueError("Invalid block type")
+
+
+def text_to_children(text):
+    text_nodes = text_to_textnodes(text)
+    children = []
+    for text_node in text_nodes:
+        html_node = text_node_to_html_node(text_node)
+        children.append(html_node)
+    return children
+
+
+def paragraph_to_html_node(block):
+    lines = block.split("\n")
+    paragraph = " ".join(lines)
+    children = text_to_children(paragraph)
+    return ParentNode("p", children)
+
+
+def heading_to_html_node(block):
+    level = 0
+    for char in block:
+        if char == "#":
+            level += 1
+        else:
             break
-        i += 1
+    if level + 1 >= len(block):
+        raise ValueError(f"Invalid heading level: {level}")
+    text = block[level + 1 :]
+    children = text_to_children(text)
+    return ParentNode(f"h{level}", children)
 
-    return f"h{i}"
 
-def get_cleaned_list_items(items):
-    list_items = items.split('\n')
-    clean_items = [item.strip() for item in list_items]
-    return clean_items
+def code_to_html_node(block):
+    if not block.startswith("```") or not block.endswith("```"):
+        raise ValueError("Invalid code block")
+    text = block[4:-3]
+    children = text_to_children(text)
+    code = ParentNode("code", children)
+    return ParentNode("pre", [code])
+
+
+def olist_to_html_node(block):
+    items = block.split("\n")
+    html_items = []
+    for item in items:
+        text = item[3:]
+        children = text_to_children(text)
+        html_items.append(ParentNode("li", children))
+    return ParentNode("ol", html_items)
+
+
+def ulist_to_html_node(block):
+    items = block.split("\n")
+    html_items = []
+    for item in items:
+        text = item[2:]
+        children = text_to_children(text)
+        html_items.append(ParentNode("li", children))
+    return ParentNode("ul", html_items)
+
+
+def quote_to_html_node(block):
+    lines = block.split("\n")
+    new_lines = []
+    for line in lines:
+        if not line.startswith(">"):
+            raise ValueError("Invalid quote block")
+        new_lines.append(line.lstrip(">").strip())
+    content = " ".join(new_lines)
+    children = text_to_children(content)
+    return ParentNode("blockquote", children)
+
